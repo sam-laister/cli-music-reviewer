@@ -2,6 +2,7 @@ package views
 
 import (
 	"cli-music-reviewer/components"
+	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/styles"
 	"fmt"
 
@@ -12,6 +13,7 @@ type HomepageModel struct {
 	state       homepageState
 	splashPage  *components.SplashScreenModel
 	browserPage *components.EntryBrowserModel
+	repos       *repositories.AppRepositories
 }
 
 type homepageState int
@@ -78,10 +80,11 @@ func (m HomepageModel) View() string {
 	return fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
 }
 
-func NewHomepage() tea.Model {
+func NewHomepage(repos *repositories.AppRepositories) tea.Model {
 	return HomepageModel{
 		state:       StateSplash,
 		splashPage:  components.NewSplashScreen(),
-		browserPage: components.NewEntryBrowser(),
+		browserPage: components.NewEntryBrowser(true, repos),
+		repos:       repos,
 	}
 }

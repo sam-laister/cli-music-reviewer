@@ -2,6 +2,8 @@ package components
 
 import (
 	"cli-music-reviewer/config"
+	"cli-music-reviewer/events"
+	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/styles"
 	"fmt"
 	"strings"
@@ -11,12 +13,23 @@ import (
 )
 
 type EntryBrowserModel struct {
-	activeIndex int
-	children    []*EntryRowModel
+	activeIndex  int
+	children     []*EntryRowModel
+	showControls bool
 }
 
 func (m *EntryBrowserModel) Update(msg tea.Msg) (*EntryBrowserModel, tea.Cmd) {
 	var cmd tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "n":
+			return m, func() tea.Msg { return events.EntryCreateRequestedMsg{} }
+		case "enter":
+			return m, func() tea.Msg { return events.EntryEditRequestedMsg{Index: m.activeIndex} }
+		}
+	}
 
 	for i := range m.children {
 		m.children[i].SetSelected(i == m.activeIndex)
@@ -57,13 +70,21 @@ func (m *EntryBrowserModel) CursorDown() {
 	m.activeIndex++
 }
 
-func NewEntryBrowser() *EntryBrowserModel {
+func NewEntryBrowser(showControls bool, repos *repositories.AppRepositories) *EntryBrowserModel {
+	entryRows := repos.EntryRowRepository.GetActiveRows()
+
+	var rowModels []*EntryRowModel
+	for _, row := range entryRows {
+		rowModels = append(rowModels, &EntryRowModel{
+			isSelected: false,
+			title:      row.Title,
+			timestamp:  row.UpdatedAt,
+		})
+	}
+
 	return &EntryBrowserModel{
-		activeIndex: 0,
-		children: []*EntryRowModel{
-			NewEntryRow(true, "Test Row", "17/08/26"),
-			NewEntryRow(false, "Test Row 2", "17/08/26"),
-			NewEntryRow(false, "Test Row 3", "17/08/26"),
-		},
+		activeIndex:  0,
+		children:     rowModels,
+		showControls: showControls,
 	}
 }
