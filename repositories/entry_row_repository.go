@@ -1,7 +1,9 @@
 package repositories
 
-import "cli-music-reviewer/models"
+import (
+	"cli-music-reviewer/models/entities"
+)
 
 type EntryRowRepository interface {
-	GetActiveRows() []models.EntryRow
+	GetActiveRows() []entities.EntryRow
 }

@@ -3,6 +3,7 @@ package components
 import (
 	"cli-music-reviewer/config"
 	"cli-music-reviewer/events"
+	"cli-music-reviewer/interfaces"
 	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/styles"
 	"fmt"
@@ -88,3 +89,7 @@ func NewEntryBrowser(showControls bool, repos *repositories.AppRepositories) *En
 		showControls: showControls,
 	}
 }
+
+var (
+	_ interfaces.ComponentInterface = (*EntryBrowserModel)(nil)
+)
