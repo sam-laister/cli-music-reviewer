@@ -4,6 +4,7 @@ import (
 	"cli-music-reviewer/interfaces"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -15,8 +16,22 @@ func NewEntityRepository[T interfaces.EntityInterface](db *sql.DB) *EntityReposi
 	return &EntityRepository[T]{db: db}
 }
 
+// newEntity allocates a fresh, non-nil T to scan a row into. T is always a
+// pointer to a struct implementing EntityInterface; the zero value of a
+// pointer type is nil, and ScanRow/ScanRows dereference fields on the
+// receiver, so scanning into "var result T" panics. reflect.TypeOf still
+// reports the pointee type on a nil T, which is enough to allocate one.
+func newEntity[T interfaces.EntityInterface]() T {
+	var zero T
+	t := reflect.TypeOf(zero)
+	if t == nil || t.Kind() != reflect.Pointer {
+		return zero
+	}
+	return reflect.New(t.Elem()).Interface().(T)
+}
+
 func (r *EntityRepository[T]) FindByID(id int) (T, error) {
-	var result T
+	result := newEntity[T]()
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id = ?", result.TableName())
 
 	row := r.db.QueryRow(query, id)
@@ -35,6 +50,9 @@ func (r *EntityRepository[T]) Create(entity T) (T, error) {
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "))
 	result, err := r.db.Exec(query, entity.Values()...)
+	if err != nil {
+		return entity, err
+	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
@@ -42,7 +60,7 @@ func (r *EntityRepository[T]) Create(entity T) (T, error) {
 	}
 
 	entity.SetID(int(id))
-	return entity, err
+	return entity, nil
 }
 
 func (r *EntityRepository[T]) GetLatestOrNull() (T, error) {
@@ -50,7 +68,7 @@ func (r *EntityRepository[T]) GetLatestOrNull() (T, error) {
 	query := fmt.Sprintf("SELECT * FROM %s ORDER BY id DESC LIMIT 1", zero.TableName())
 
 	row := r.db.QueryRow(query)
-	var result T
+	result := newEntity[T]()
 	if err := result.ScanRow(row); err != nil {
 		if err == sql.ErrNoRows {
 			return zero, nil
@@ -72,7 +90,7 @@ func (r *EntityRepository[T]) FindBy(column string, value interface{}) ([]T, err
 
 	var results []T
 	for rows.Next() {
-		var item T
+		item := newEntity[T]()
 		if err := item.ScanRows(rows); err != nil {
 			return nil, err
 		}
@@ -119,7 +137,7 @@ func (r *EntityRepository[T]) FindAll() ([]T, error) {
 
 	var results []T
 	for rows.Next() {
-		var item T
+		item := newEntity[T]()
 		if err := item.ScanRows(rows); err != nil {
 			return nil, err
 		}
