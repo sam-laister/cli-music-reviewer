@@ -4,6 +4,7 @@ import (
 	"cli-music-reviewer/models/entities"
 )
 
-type EntryRowRepository interface {
-	GetActiveRows() []entities.EntryRow
+type EntryRowRepositoryInterface interface {
+	EntityRepositoryInterface[*entities.EntryRow]
+	GetActiveRows() ([]*entities.EntryRow, error)
 }

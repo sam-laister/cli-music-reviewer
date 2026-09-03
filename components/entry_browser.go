@@ -72,7 +72,11 @@ func (m *EntryBrowserModel) CursorDown() {
 }
 
 func NewEntryBrowser(showControls bool, repos *repositories.AppRepositories) *EntryBrowserModel {
-	entryRows := repos.EntryRowRepository.GetActiveRows()
+	entryRows, err := repos.EntryRowRepository.GetActiveRows()
+
+	if err != nil {
+		return nil
+	}
 
 	var rowModels []*EntryRowModel
 	for _, row := range entryRows {

@@ -1,5 +1,5 @@
 package repositories
 
 type AppRepositories struct {
-	EntryRowRepository EntryRowRepository
+	EntryRowRepository EntryRowRepositoryInterface
 }

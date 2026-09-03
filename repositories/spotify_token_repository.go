@@ -5,7 +5,7 @@ import (
 	"cli-music-reviewer/models/entities"
 )
 
-type SpotifyTokenRepository interface {
-	Create(request dtos.CreateSpotifyTokenDTO) (int64, error)
-	GetLatestOrNull() (*entities.SpotifyToken, error)
+type SpotifyTokenRepositoryInterface interface {
+	EntityRepositoryInterface[*entities.SpotifyToken]
+	CreateFromDTO(request *dtos.CreateSpotifyTokenDTO) (*entities.SpotifyToken, error)
 }

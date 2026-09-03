@@ -32,7 +32,7 @@ type TokenResponse struct {
 
 type SpotifyHandlerImpl struct {
 	browserService   BrowserService
-	spotifyTokenRepo repositories.SpotifyTokenRepository
+	spotifyTokenRepo repositories.SpotifyTokenRepositoryInterface
 	clientId         string
 	clientSecret     string
 }
@@ -91,12 +91,7 @@ func (s *SpotifyHandlerImpl) EnsureAuthorized() error {
 		return ErrNoStoredToken
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, stored.ExpiresAt)
-	if err != nil {
-		return err
-	}
-
-	if time.Now().Before(expiresAt) {
+	if time.Now().Before(stored.ExpiresAt) {
 		return nil
 	}
 
@@ -157,10 +152,10 @@ func (s *SpotifyHandlerImpl) exchangeToken(form url.Values) (*TokenResponse, err
 
 func (s *SpotifyHandlerImpl) saveToken(token *TokenResponse) error {
 	expiresAt := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
-	if _, err := s.spotifyTokenRepo.Create(dtos.CreateSpotifyTokenDTO{
+	if _, err := s.spotifyTokenRepo.CreateFromDTO(&dtos.CreateSpotifyTokenDTO{
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
-		ExpiresAt:    expiresAt.Format(time.RFC3339),
+		ExpiresAt:    expiresAt,
 	}); err != nil {
 		log.Print(err)
 		return err
@@ -169,7 +164,7 @@ func (s *SpotifyHandlerImpl) saveToken(token *TokenResponse) error {
 	return nil
 }
 
-func NewSpotifyHandler(browserService BrowserService, spotifyTokenRepo repositories.SpotifyTokenRepository, clientId, clientSecret string) *SpotifyHandlerImpl {
+func NewSpotifyHandler(browserService BrowserService, spotifyTokenRepo repositories.SpotifyTokenRepositoryInterface, clientId, clientSecret string) *SpotifyHandlerImpl {
 	return &SpotifyHandlerImpl{
 		browserService:   browserService,
 		spotifyTokenRepo: spotifyTokenRepo,

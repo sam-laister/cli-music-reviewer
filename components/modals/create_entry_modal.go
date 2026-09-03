@@ -8,4 +8,6 @@ func (m *CreateEntryModalModel) Update(msg tea.Msg) (*CreateEntryModalModel, tea
 	return m, nil
 }
 
-func (m *CreateEntryModalModel) View() string {}
+func (m *CreateEntryModalModel) View() string {
+	return ""
+}
