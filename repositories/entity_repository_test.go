@@ -75,7 +75,7 @@ func newTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 
 	schema := []string{
-		`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN NOT NULL DEFAULT TRUE)`,
+		`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN NOT NULL DEFAULT TRUE, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE spotify_tokens (id INTEGER PRIMARY KEY, access_token TEXT, refresh_token TEXT, expires_at date, updated_at date)`,
 	}
 	for _, stmt := range schema {
@@ -264,7 +264,7 @@ func TestEntryRowRepository_CRUD(t *testing.T) {
 			return NewEntityRepository[*entities.EntryRow](newTestDB(t))
 		},
 		func() *entities.EntryRow {
-			return &entities.EntryRow{Title: "title", Body: "body", CreatedAt: "2026-01-01", UpdatedAt: "2026-01-01", Active: true}
+			return &entities.EntryRow{Title: "title", Body: "body", CreatedAt: "2026-01-01", UpdatedAt: "2026-01-01", Active: true, SpotifyID: "abc123", SpotifyType: "album", SpotifyLink: "https://open.spotify.com/album/abc123", CoverArtSmall: "small.jpg", CoverArtMedium: "medium.jpg", CoverArtLarge: "large.jpg"}
 		},
 		func(e *entities.EntryRow) { e.Title = "updated title" },
 	)
@@ -301,7 +301,7 @@ func TestEntityRepository_Create_ReturnsErrorOnConstraintViolation(t *testing.T)
 	}
 	defer db.Close()
 
-	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT UNIQUE, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN)`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT UNIQUE, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
 
@@ -331,7 +331,7 @@ func TestEntityRepository_FindByID_PanicLeaksConnection(t *testing.T) {
 	defer db.Close()
 	db.SetMaxOpenConns(1)
 
-	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN)`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
 
