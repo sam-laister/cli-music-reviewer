@@ -3,7 +3,6 @@ package main
 import (
 	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/services"
-	"errors"
 	"log"
 	"os"
 
@@ -28,29 +27,11 @@ func main() {
 	spotifyTokenRepo := repositories.NewSpotifyTokenRepository(db)
 	browserService := services.NewBrowserService()
 	spotifyHandler := services.NewSpotifyHandler(browserService, spotifyTokenRepo, os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_SECRET"))
-
-	err = spotifyHandler.EnsureAuthorized()
-	if err == nil {
-		log.Print("Spotify token still valid — nothing to do")
-		return
-	}
-	if !errors.Is(err, services.ErrNoStoredToken) {
-		log.Fatal(err)
-	}
-
 	httpHandler := services.NewHttpHandler(spotifyHandler, port)
 
-	if err := httpHandler.Setup(); err != nil {
+	if err := services.Connect(spotifyHandler, httpHandler); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := spotifyHandler.Authorize(); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := httpHandler.Wait(); err != nil {
-		log.Fatal(err)
-	}
-
-	log.Print("Spotify authorization complete — token stored")
+	log.Print("Spotify connected")
 }
