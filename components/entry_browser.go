@@ -25,7 +25,7 @@ func (m *EntryBrowserModel) Update(msg tea.Msg) (*EntryBrowserModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "n":
+		case "c":
 			return m, func() tea.Msg { return events.EntryCreateRequestedMsg{} }
 		case "enter":
 			return m, func() tea.Msg { return events.EntryEditRequestedMsg{Index: m.activeIndex} }

@@ -29,4 +29,11 @@ var (
 	CursorStyle       = lipgloss.NewStyle().Foreground(Magenta).Bold(true)
 	SelectedItemStyle = lipgloss.NewStyle().Foreground(Cyan).Bold(true)
 	InstructionStyle  = lipgloss.NewStyle().Foreground(Gray)
+
+	ModalStyle = lipgloss.NewStyle().
+			Margin(1, 0, 1, 0).
+			Padding(1, 3).
+			Background(lipgloss.Color("236")).
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(Cyan)
 )
