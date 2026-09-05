@@ -1,7 +1,11 @@
 package entities
 
+import "time"
+
 type GenericEntity struct {
-	ID int
+	ID        int
+	UpdatedAt time.Time
+	CreatedAt time.Time
 }
 
 func (r *GenericEntity) GetID() int {

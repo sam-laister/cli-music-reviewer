@@ -9,7 +9,6 @@ import (
 	"cli-music-reviewer/styles"
 	"fmt"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -119,8 +118,7 @@ func (m *HomepageModel) createEntry(title string) {
 		return
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
-	if _, err := m.repos.EntryRowRepository.Create(&entities.EntryRow{Title: title, CreatedAt: now, UpdatedAt: now, Active: true}); err != nil {
+	if _, err := m.repos.EntryRowRepository.Create(entities.NewEntryRow(title, "", "", "", "", "", "", "", true)); err != nil {
 		return
 	}
 

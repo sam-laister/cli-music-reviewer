@@ -5,6 +5,7 @@ import (
 	"cli-music-reviewer/events"
 	"cli-music-reviewer/interfaces"
 	"cli-music-reviewer/repositories"
+	"cli-music-reviewer/services"
 	"cli-music-reviewer/styles"
 	"fmt"
 	"strings"
@@ -83,7 +84,7 @@ func NewEntryBrowser(showControls bool, repos *repositories.AppRepositories) *En
 		rowModels = append(rowModels, &EntryRowModel{
 			isSelected: false,
 			title:      row.Title,
-			timestamp:  row.UpdatedAt,
+			timestamp:  services.DateToString(row.UpdatedAt),
 		})
 	}
 

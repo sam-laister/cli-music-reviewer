@@ -264,7 +264,12 @@ func TestEntryRowRepository_CRUD(t *testing.T) {
 			return NewEntityRepository[*entities.EntryRow](newTestDB(t))
 		},
 		func() *entities.EntryRow {
-			return &entities.EntryRow{Title: "title", Body: "body", CreatedAt: "2026-01-01", UpdatedAt: "2026-01-01", Active: true, SpotifyID: "abc123", SpotifyType: "album", SpotifyLink: "https://open.spotify.com/album/abc123", CoverArtSmall: "small.jpg", CoverArtMedium: "medium.jpg", CoverArtLarge: "large.jpg"}
+			formattedNow, err := time.Parse("2006-01-02", "2026-01-01")
+			if err != nil {
+				t.Fail()
+			}
+
+			return &entities.EntryRow{Title: "title", Body: "body", Active: true, SpotifyID: "abc123", SpotifyType: "album", SpotifyLink: "https://open.spotify.com/album/abc123", CoverArtSmall: "small.jpg", CoverArtMedium: "medium.jpg", CoverArtLarge: "large.jpg", GenericEntity: entities.GenericEntity{CreatedAt: formattedNow, UpdatedAt: formattedNow}}
 		},
 		func(e *entities.EntryRow) { e.Title = "updated title" },
 	)
