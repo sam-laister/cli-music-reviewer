@@ -1,9 +1,13 @@
 package services
 
-import "database/sql"
+import (
+	"database/sql"
+
+	_ "github.com/mattn/go-sqlite3"
+)
 
 const (
-	driverName = "sqlite"
+	driverName = "sqlite3"
 )
 
 type DatabaseServiceImpl struct {

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // testTimeout bounds every DB call made through withTimeout/withTimeoutErr.
@@ -68,14 +68,14 @@ func newTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	dsn := fmt.Sprintf("file:testdb%d?mode=memory&cache=shared", testDBCounter.Add(1))
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
 
 	schema := []string{
-		`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN NOT NULL DEFAULT TRUE, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at date, updated_at date, active BOOLEAN NOT NULL DEFAULT TRUE, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE spotify_tokens (id INTEGER PRIMARY KEY, access_token TEXT, refresh_token TEXT, expires_at date, updated_at date)`,
 	}
 	for _, stmt := range schema {
@@ -300,13 +300,13 @@ func TestSpotifyTokenRepository_CRUD(t *testing.T) {
 func TestEntityRepository_Create_ReturnsErrorOnConstraintViolation(t *testing.T) {
 	defer recoverAsFailure(t)
 
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	defer db.Close()
 
-	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT UNIQUE, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT UNIQUE, body TEXT, created_at date, updated_at date, active BOOLEAN, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
 
@@ -329,14 +329,14 @@ func TestEntityRepository_Create_ReturnsErrorOnConstraintViolation(t *testing.T)
 // enough leaked connections exhaust it and every later query hangs forever
 // instead of returning an error.
 func TestEntityRepository_FindByID_PanicLeaksConnection(t *testing.T) {
-	db, err := sql.Open("sqlite", "file:leaktest?mode=memory&cache=shared")
+	db, err := sql.Open("sqlite3", "file:leaktest?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	defer db.Close()
 	db.SetMaxOpenConns(1)
 
-	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at TEXT, updated_at TEXT, active BOOLEAN, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE entry_rows (id INTEGER PRIMARY KEY, title TEXT, body TEXT, created_at date, updated_at date, active BOOLEAN, spotify_id TEXT NOT NULL DEFAULT '', spotify_type TEXT NOT NULL DEFAULT '', spotify_link TEXT NOT NULL DEFAULT '', cover_art_small TEXT NOT NULL DEFAULT '', cover_art_medium TEXT NOT NULL DEFAULT '', cover_art_large TEXT NOT NULL DEFAULT '')`); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
 

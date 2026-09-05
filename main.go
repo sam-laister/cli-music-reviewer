@@ -10,7 +10,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
-	_ "modernc.org/sqlite"
 )
 
 func SetupDatabase() (*sql.DB, error) {

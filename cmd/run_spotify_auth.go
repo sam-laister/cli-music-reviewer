@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	_ "modernc.org/sqlite"
 )
 
 const port = "8888"
