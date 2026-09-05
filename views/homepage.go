@@ -6,6 +6,7 @@ import (
 	"cli-music-reviewer/events"
 	"cli-music-reviewer/models/entities"
 	"cli-music-reviewer/repositories"
+	"cli-music-reviewer/services"
 	"cli-music-reviewer/styles"
 	"fmt"
 	"strings"
@@ -14,11 +15,13 @@ import (
 )
 
 type HomepageModel struct {
-	state       homepageState
-	splashPage  *components.SplashScreenModel
-	browserPage *components.EntryBrowserModel
-	modal       *modals.CreateEntryModalModel
-	repos       *repositories.AppRepositories
+	state             homepageState
+	splashPage        *components.SplashScreenModel
+	browserPage       *components.EntryBrowserModel
+	spotifyStatusPage *components.SpotifyStatusModel
+	modal             *modals.CreateEntryModalModel
+	repos             *repositories.AppRepositories
+	services          *services.AppServices
 }
 
 type homepageState int
@@ -26,6 +29,7 @@ type homepageState int
 const (
 	StateSplash homepageState = iota
 	StateMenu
+	StateSpotifyStatus
 	StateCount
 )
 
@@ -84,6 +88,8 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.browserPage, cmd = m.browserPage.Update(msg)
+	case StateSpotifyStatus:
+		m.spotifyStatusPage, cmd = m.spotifyStatusPage.Update(msg)
 	default:
 		panic("unknown state")
 	}
@@ -99,6 +105,8 @@ func (m HomepageModel) View() string {
 		currentView = m.splashPage.View()
 	case StateMenu:
 		currentView = m.browserPage.View()
+	case StateSpotifyStatus:
+		currentView = m.spotifyStatusPage.View()
 	default:
 		panic("unknown state")
 	}
@@ -125,11 +133,13 @@ func (m *HomepageModel) createEntry(title string) {
 	m.browserPage = components.NewEntryBrowser(true, m.repos)
 }
 
-func NewHomepage(repos *repositories.AppRepositories) tea.Model {
+func NewHomepage(repos *repositories.AppRepositories, services *services.AppServices) tea.Model {
 	return HomepageModel{
-		state:       StateSplash,
-		splashPage:  components.NewSplashScreen(),
-		browserPage: components.NewEntryBrowser(true, repos),
-		repos:       repos,
+		state:             StateSplash,
+		splashPage:        components.NewSplashScreen(),
+		browserPage:       components.NewEntryBrowser(true, repos),
+		spotifyStatusPage: components.NewSpotifyStatus(services.SpotifyHandler),
+		repos:             repos,
+		services:          services,
 	}
 }

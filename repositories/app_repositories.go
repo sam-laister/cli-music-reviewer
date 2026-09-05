@@ -1,5 +1,6 @@
 package repositories
 
 type AppRepositories struct {
-	EntryRowRepository EntryRowRepositoryInterface
+	EntryRowRepository     EntryRowRepositoryInterface
+	SpotifyTokenRepository SpotifyTokenRepositoryInterface
 }

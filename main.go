@@ -25,7 +25,17 @@ func SetupDatabase() (*sql.DB, error) {
 
 func SetupRepositories(db *sql.DB) *repositories.AppRepositories {
 	return &repositories.AppRepositories{
-		EntryRowRepository: repositories.NewEntryRowRepository(db),
+		EntryRowRepository:     repositories.NewEntryRowRepository(db),
+		SpotifyTokenRepository: repositories.NewSpotifyTokenRepository(db),
+	}
+}
+
+func SetupServices(repos *repositories.AppRepositories) *services.AppServices {
+	browserService := services.NewBrowserService()
+
+	return &services.AppServices{
+		BrowserService: browserService,
+		SpotifyHandler: services.NewSpotifyHandler(browserService, repos.SpotifyTokenRepository, os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_SECRET")),
 	}
 }
 
@@ -43,8 +53,9 @@ func main() {
 	defer db.Close()
 
 	repos := SetupRepositories(db)
+	services := SetupServices(repos)
 
-	if _, err := tea.NewProgram(views.NewHomepage(repos)).Run(); err != nil {
+	if _, err := tea.NewProgram(views.NewHomepage(repos, services)).Run(); err != nil {
 		log.Fatal("Uh oh:", err)
 	}
 }

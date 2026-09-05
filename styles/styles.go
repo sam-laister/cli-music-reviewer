@@ -7,6 +7,8 @@ var (
 	Cyan    = lipgloss.Color("#00f2fe")
 	White   = lipgloss.Color("#ffffff")
 	Gray    = lipgloss.Color("240")
+	Green   = lipgloss.Color("#00d68f")
+	Red     = lipgloss.Color("#ff4d4f")
 
 	AsciiHeroStyle = lipgloss.NewStyle().
 			Margin(1, 0, 2, 0).
@@ -29,6 +31,8 @@ var (
 	CursorStyle       = lipgloss.NewStyle().Foreground(Magenta).Bold(true)
 	SelectedItemStyle = lipgloss.NewStyle().Foreground(Cyan).Bold(true)
 	InstructionStyle  = lipgloss.NewStyle().Foreground(Gray)
+	SuccessStyle      = lipgloss.NewStyle().Foreground(Green).Bold(true)
+	ErrorStyle        = lipgloss.NewStyle().Foreground(Red).Bold(true)
 
 	ModalStyle = lipgloss.NewStyle().
 			Margin(1, 0, 1, 0).
