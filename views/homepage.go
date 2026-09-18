@@ -49,10 +49,10 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case events.EntryCreateSubmittedMsg:
 			m.createEntry(msg)
 			m.modal = nil
-			return m, tea.ExitAltScreen
+			return m, nil
 		case events.EntryCreateCancelledMsg:
 			m.modal = nil
-			return m, tea.ExitAltScreen
+			return m, nil
 		}
 
 		m.modal, cmd = m.modal.Update(msg)
@@ -117,7 +117,16 @@ func (m HomepageModel) View() string {
 
 	instructions := styles.InstructionStyle.Render("Press 'tab' to switch views • 'q' to quit")
 
-	return fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
+	view := fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
+
+	// No modal is showing artwork right now — drop any inline image the
+	// terminal may still have placed from a previous frame (e.g. just after
+	// closing the create-entry picker/form).
+	if m.modal == nil {
+		view = m.services.ArtworkService.ClearImages() + view
+	}
+
+	return view
 }
 
 func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) {

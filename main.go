@@ -59,7 +59,7 @@ func main() {
 	repos := SetupRepositories(db)
 	services := SetupServices(repos)
 
-	if _, err := tea.NewProgram(views.NewHomepage(repos, services)).Run(); err != nil {
+	if _, err := tea.NewProgram(views.NewHomepage(repos, services), tea.WithAltScreen()).Run(); err != nil {
 		log.Fatal("Uh oh:", err)
 	}
 }

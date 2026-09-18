@@ -32,7 +32,7 @@ func NewCreateEntryModal(spotifyHandler services.SpotifyHandler, artworkService 
 		artworkService: artworkService,
 	}
 
-	return m, tea.Batch(tea.EnterAltScreen, loadCmd)
+	return m, loadCmd
 }
 
 func (m *CreateEntryModalModel) Update(msg tea.Msg) (*CreateEntryModalModel, tea.Cmd) {
