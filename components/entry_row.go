@@ -1,6 +1,7 @@
 package components
 
 import (
+	"cli-music-reviewer/models/entities"
 	"cli-music-reviewer/styles"
 	"fmt"
 
@@ -12,6 +13,7 @@ type EntryRowModel struct {
 	id         uint64
 	title      string
 	timestamp  string
+	entry      *entities.EntryRow
 }
 
 func (m *EntryRowModel) Update(msg tea.Msg) (*EntryRowModel, tea.Cmd) {
@@ -37,11 +39,12 @@ func (m *EntryRowModel) SetSelected(isSelected bool) {
 	m.isSelected = isSelected
 }
 
-func NewEntryRow(isSelected bool, id uint64, title string, timestamp string) *EntryRowModel {
+func NewEntryRow(isSelected bool, entry *entities.EntryRow, timestamp string) *EntryRowModel {
 	return &EntryRowModel{
 		isSelected: isSelected,
-		id:         id,
-		title:      title,
+		id:         entry.ID,
+		title:      entry.Title,
 		timestamp:  timestamp,
+		entry:      entry,
 	}
 }

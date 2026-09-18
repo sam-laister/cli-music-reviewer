@@ -25,6 +25,7 @@ type HomepageModel struct {
 	services          *services.AppServices
 	termWidth         int
 	termHeight        int
+	initialCmd        tea.Cmd
 }
 
 type homepageState int
@@ -37,7 +38,7 @@ const (
 )
 
 func (m HomepageModel) Init() tea.Cmd {
-	return nil
+	return m.initialCmd
 }
 
 func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -54,12 +55,12 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case events.EntryCreateSubmittedMsg:
-			m.createEntry(msg)
+			browserCmd := m.createEntry(msg)
 			m.modal = nil
-			return m, nil
+			return m, tea.Batch(browserCmd, tea.ClearScreen)
 		case events.EntryCreateCancelledMsg:
 			m.modal = nil
-			return m, nil
+			return m, tea.ClearScreen
 		}
 
 		m.modal, cmd = m.modal.Update(msg)
@@ -75,11 +76,12 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case events.ReviewSaveRequestedMsg:
 			_ = m.repos.EntryRowRepository.Update(msg.Entry)
 			m.reviewEditor = nil
-			m.browserPage = components.NewEntryBrowser(true, m.repos)
-			return m, nil
+			var browserCmd tea.Cmd
+			m.browserPage, browserCmd = components.NewEntryBrowser(true, m.repos, m.services.ArtworkService)
+			return m, tea.Batch(browserCmd, tea.ClearScreen)
 		case events.ReviewEditCancelledMsg:
 			m.reviewEditor = nil
-			return m, nil
+			return m, tea.ClearScreen
 		}
 
 		m.reviewEditor, cmd = m.reviewEditor.Update(msg)
@@ -93,14 +95,16 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "tab":
 			m.state = (m.state + 1) % StateCount
+			return m, tea.ClearScreen
 		}
 	case events.EntryCreateRequestedMsg:
 		var focusCmd tea.Cmd
 		m.modal, focusCmd = modals.NewCreateEntryModal(m.services.SpotifyHandler, m.services.ArtworkService)
-		return m, focusCmd
+		return m, tea.Batch(focusCmd, tea.ClearScreen)
 	case events.EntryEditRequestedMsg:
 		if editor, err := modals.NewReviewEditor(msg.EntryID, m.repos.EntryRowRepository, m.termWidth, m.termHeight); err == nil {
 			m.reviewEditor = editor
+			return m, tea.ClearScreen
 		}
 		return m, nil
 	}
@@ -109,17 +113,20 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StateSplash:
 		m.splashPage, cmd = m.splashPage.Update(msg)
 	case StateMenu:
+		var navCmd tea.Cmd
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch keypress := msg.String(); keypress {
 			case "up":
-				m.browserPage.CursorUp()
+				navCmd = m.browserPage.CursorUp()
 			case "down":
-				m.browserPage.CursorDown()
+				navCmd = m.browserPage.CursorDown()
 			}
 		}
 
-		m.browserPage, cmd = m.browserPage.Update(msg)
+		var updateCmd tea.Cmd
+		m.browserPage, updateCmd = m.browserPage.Update(msg)
+		cmd = tea.Batch(navCmd, updateCmd)
 	case StateSpotifyStatus:
 		m.spotifyStatusPage, cmd = m.spotifyStatusPage.Update(msg)
 	default:
@@ -152,22 +159,35 @@ func (m HomepageModel) View() string {
 
 	instructions := styles.InstructionStyle.Render("Press 'tab' to switch views • 'q' to quit")
 
-	view := fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
-
-	// No modal is showing artwork right now — drop any inline image the
-	// terminal may still have placed from a previous frame (e.g. just after
-	// closing the create-entry picker/form).
-	if m.modal == nil {
-		view = m.services.ArtworkService.ClearImages() + view
+	// canShowArtwork: is it possible for currentView, as rendered above, to
+	// contain a fresh Kitty image placement of its own? Both the browser
+	// list (StateMenu) and the create-entry modal (picker/form step) can.
+	//
+	// When it's NOT possible, prepend a clear so nothing stale from a
+	// previous frame lingers (switching state/tabs away from the entry
+	// browser, opening the review editor, etc.) — views that CAN show
+	// artwork already bake their own delete-then-place into whatever cached
+	// image string they re-embed (see services/artwork_service.go), so nothing
+	// extra is needed there, and unconditionally prepending regardless of
+	// this check does NOT work: browserPage/modal views all share a leading
+	// blank margin line (styles.ConfigHeroStyle / styles.ModalStyle both use
+	// Margin(1,0,1,0)), so an always-on prefix sits on an always-identical
+	// line and Bubble Tea's line-diffing renderer permanently skips resending
+	// it after the first paint. Toggling the prefix's presence on/off exactly
+	// at these transitions is what guarantees the line actually changes when
+	// it needs to.
+	canShowArtwork := m.modal != nil || (m.reviewEditor == nil && m.state == StateMenu)
+	if !canShowArtwork {
+		currentView = m.services.ArtworkService.ClearImages() + currentView
 	}
 
-	return view
+	return fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
 }
 
-func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) {
+func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) tea.Cmd {
 	title := strings.TrimSpace(msg.Title)
 	if title == "" {
-		return
+		return nil
 	}
 
 	entry := entities.NewEntryRow(
@@ -185,19 +205,24 @@ func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) {
 	)
 
 	if _, err := m.repos.EntryRowRepository.Create(entry); err != nil {
-		return
+		return nil
 	}
 
-	m.browserPage = components.NewEntryBrowser(true, m.repos)
+	var browserCmd tea.Cmd
+	m.browserPage, browserCmd = components.NewEntryBrowser(true, m.repos, m.services.ArtworkService)
+	return browserCmd
 }
 
 func NewHomepage(repos *repositories.AppRepositories, services *services.AppServices) tea.Model {
+	browserPage, browserCmd := components.NewEntryBrowser(true, repos, services.ArtworkService)
+
 	return HomepageModel{
 		state:             StateSplash,
 		splashPage:        components.NewSplashScreen(),
-		browserPage:       components.NewEntryBrowser(true, repos),
+		browserPage:       browserPage,
 		spotifyStatusPage: components.NewSpotifyStatus(services.SpotifyHandler, services.HttpHandler),
 		repos:             repos,
 		services:          services,
+		initialCmd:        browserCmd,
 	}
 }
