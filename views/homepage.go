@@ -20,8 +20,11 @@ type HomepageModel struct {
 	browserPage       *components.EntryBrowserModel
 	spotifyStatusPage *components.SpotifyStatusModel
 	modal             *modals.CreateEntryModalModel
+	reviewEditor      *modals.ReviewEditorModel
 	repos             *repositories.AppRepositories
 	services          *services.AppServices
+	termWidth         int
+	termHeight        int
 }
 
 type homepageState int
@@ -39,6 +42,10 @@ func (m HomepageModel) Init() tea.Cmd {
 
 func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
+		m.termWidth, m.termHeight = sizeMsg.Width, sizeMsg.Height
+	}
 
 	if m.modal != nil {
 		switch msg := msg.(type) {
@@ -59,6 +66,26 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.reviewEditor != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "ctrl+c" {
+				return m, tea.Quit
+			}
+		case events.ReviewSaveRequestedMsg:
+			_ = m.repos.EntryRowRepository.Update(msg.Entry)
+			m.reviewEditor = nil
+			m.browserPage = components.NewEntryBrowser(true, m.repos)
+			return m, nil
+		case events.ReviewEditCancelledMsg:
+			m.reviewEditor = nil
+			return m, nil
+		}
+
+		m.reviewEditor, cmd = m.reviewEditor.Update(msg)
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
@@ -71,6 +98,11 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var focusCmd tea.Cmd
 		m.modal, focusCmd = modals.NewCreateEntryModal(m.services.SpotifyHandler, m.services.ArtworkService)
 		return m, focusCmd
+	case events.EntryEditRequestedMsg:
+		if editor, err := modals.NewReviewEditor(msg.EntryID, m.repos.EntryRowRepository, m.termWidth, m.termHeight); err == nil {
+			m.reviewEditor = editor
+		}
+		return m, nil
 	}
 
 	switch m.state {
@@ -111,8 +143,11 @@ func (m HomepageModel) View() string {
 		panic("unknown state")
 	}
 
-	if m.modal != nil {
+	switch {
+	case m.modal != nil:
 		currentView = m.modal.View()
+	case m.reviewEditor != nil:
+		currentView = m.reviewEditor.View()
 	}
 
 	instructions := styles.InstructionStyle.Render("Press 'tab' to switch views • 'q' to quit")

@@ -30,7 +30,11 @@ func (m *EntryBrowserModel) Update(msg tea.Msg) (*EntryBrowserModel, tea.Cmd) {
 		case "c":
 			return m, func() tea.Msg { return events.EntryCreateRequestedMsg{} }
 		case "enter":
-			return m, func() tea.Msg { return events.EntryEditRequestedMsg{Index: m.activeIndex} }
+			if len(m.children) == 0 {
+				return m, nil
+			}
+			entryID := m.children[m.activeIndex].id
+			return m, func() tea.Msg { return events.EntryEditRequestedMsg{EntryID: entryID} }
 		}
 	}
 
@@ -84,6 +88,7 @@ func NewEntryBrowser(showControls bool, repos *repositories.AppRepositories) *En
 	for _, row := range entryRows {
 		rowModels = append(rowModels, &EntryRowModel{
 			isSelected: false,
+			id:         row.ID,
 			title:      row.Title,
 			timestamp:  services.DateToString(row.UpdatedAt),
 		})

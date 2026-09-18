@@ -9,6 +9,7 @@ import (
 
 type EntryRowModel struct {
 	isSelected bool
+	id         uint64
 	title      string
 	timestamp  string
 }
@@ -36,9 +37,10 @@ func (m *EntryRowModel) SetSelected(isSelected bool) {
 	m.isSelected = isSelected
 }
 
-func NewEntryRow(isSelected bool, title string, timestamp string) *EntryRowModel {
+func NewEntryRow(isSelected bool, id uint64, title string, timestamp string) *EntryRowModel {
 	return &EntryRowModel{
 		isSelected: isSelected,
+		id:         id,
 		title:      title,
 		timestamp:  timestamp,
 	}

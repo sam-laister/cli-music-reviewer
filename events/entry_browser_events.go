@@ -3,7 +3,7 @@ package events
 type EntryCreateRequestedMsg struct{}
 
 type EntryEditRequestedMsg struct {
-	Index int
+	EntryID uint64
 }
 
 type EntryCreateSubmittedMsg struct {
