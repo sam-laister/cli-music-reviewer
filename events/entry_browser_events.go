@@ -7,7 +7,15 @@ type EntryEditRequestedMsg struct {
 }
 
 type EntryCreateSubmittedMsg struct {
-	Title string
+	Title          string
+	Artist         string
+	ReleaseDate    string
+	SpotifyID      string
+	SpotifyType    string
+	SpotifyLink    string
+	CoverArtSmall  string
+	CoverArtMedium string
+	CoverArtLarge  string
 }
 
 type EntryCreateCancelledMsg struct{}

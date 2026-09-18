@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cli-music-reviewer/config"
 	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/services"
 	"cli-music-reviewer/views"
@@ -32,10 +33,13 @@ func SetupRepositories(db *sqlx.DB) *repositories.AppRepositories {
 
 func SetupServices(repos *repositories.AppRepositories) *services.AppServices {
 	browserService := services.NewBrowserService()
+	spotifyHandler := services.NewSpotifyHandler(browserService, repos.SpotifyTokenRepository, os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_SECRET"))
 
 	return &services.AppServices{
 		BrowserService: browserService,
-		SpotifyHandler: services.NewSpotifyHandler(browserService, repos.SpotifyTokenRepository, os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_SECRET")),
+		SpotifyHandler: spotifyHandler,
+		ArtworkService: services.NewArtworkService(),
+		HttpHandler:    services.NewHttpHandler(spotifyHandler, config.SpotifyCallbackPort),
 	}
 }
 

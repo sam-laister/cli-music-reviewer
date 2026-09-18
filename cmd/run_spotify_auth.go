@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cli-music-reviewer/config"
 	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/services"
 	"log"
@@ -8,8 +9,6 @@ import (
 
 	"github.com/joho/godotenv"
 )
-
-const port = "8888"
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -26,7 +25,7 @@ func main() {
 	spotifyTokenRepo := repositories.NewSpotifyTokenRepository(db)
 	browserService := services.NewBrowserService()
 	spotifyHandler := services.NewSpotifyHandler(browserService, spotifyTokenRepo, os.Getenv("SPOTIFY_CLIENT_ID"), os.Getenv("SPOTIFY_SECRET"))
-	httpHandler := services.NewHttpHandler(spotifyHandler, port)
+	httpHandler := services.NewHttpHandler(spotifyHandler, config.SpotifyCallbackPort)
 
 	if err := services.Connect(spotifyHandler, httpHandler); err != nil {
 		log.Fatal(err)

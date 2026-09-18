@@ -47,12 +47,12 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case events.EntryCreateSubmittedMsg:
-			m.createEntry(msg.Title)
+			m.createEntry(msg)
 			m.modal = nil
-			return m, nil
+			return m, tea.ExitAltScreen
 		case events.EntryCreateCancelledMsg:
 			m.modal = nil
-			return m, nil
+			return m, tea.ExitAltScreen
 		}
 
 		m.modal, cmd = m.modal.Update(msg)
@@ -69,7 +69,7 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case events.EntryCreateRequestedMsg:
 		var focusCmd tea.Cmd
-		m.modal, focusCmd = modals.NewCreateEntryModal()
+		m.modal, focusCmd = modals.NewCreateEntryModal(m.services.SpotifyHandler, m.services.ArtworkService)
 		return m, focusCmd
 	}
 
@@ -120,13 +120,27 @@ func (m HomepageModel) View() string {
 	return fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
 }
 
-func (m *HomepageModel) createEntry(title string) {
-	title = strings.TrimSpace(title)
+func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) {
+	title := strings.TrimSpace(msg.Title)
 	if title == "" {
 		return
 	}
 
-	if _, err := m.repos.EntryRowRepository.Create(entities.NewEntryRow(title, "", "", "", "", "", "", "", true)); err != nil {
+	entry := entities.NewEntryRow(
+		title,
+		"",
+		msg.Artist,
+		msg.ReleaseDate,
+		msg.SpotifyID,
+		msg.SpotifyType,
+		msg.SpotifyLink,
+		msg.CoverArtSmall,
+		msg.CoverArtMedium,
+		msg.CoverArtLarge,
+		true,
+	)
+
+	if _, err := m.repos.EntryRowRepository.Create(entry); err != nil {
 		return
 	}
 
@@ -138,7 +152,7 @@ func NewHomepage(repos *repositories.AppRepositories, services *services.AppServ
 		state:             StateSplash,
 		splashPage:        components.NewSplashScreen(),
 		browserPage:       components.NewEntryBrowser(true, repos),
-		spotifyStatusPage: components.NewSpotifyStatus(services.SpotifyHandler),
+		spotifyStatusPage: components.NewSpotifyStatus(services.SpotifyHandler, services.HttpHandler),
 		repos:             repos,
 		services:          services,
 	}

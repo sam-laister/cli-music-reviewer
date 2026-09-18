@@ -3,7 +3,6 @@ package repositories
 import (
 	"cli-music-reviewer/models/dtos"
 	"cli-music-reviewer/models/entities"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -19,12 +18,15 @@ func NewSpotifyTokenRepository(db *sqlx.DB) *SpotifyTokenRepositoryImpl {
 }
 
 func (r *SpotifyTokenRepositoryImpl) CreateFromDTO(request *dtos.CreateSpotifyTokenDTO) (*entities.SpotifyToken, error) {
-	return r.Create(&entities.SpotifyToken{
+	token := &entities.SpotifyToken{
 		AccessToken:  request.AccessToken,
 		RefreshToken: request.RefreshToken,
 		ExpiresAt:    request.ExpiresAt,
-		UpdatedAt:    time.Now(),
-	})
+	}
+	token.MarkCreated()
+	token.MarkUpdated()
+
+	return r.Create(token)
 }
 
 var _ SpotifyTokenRepositoryInterface = (*SpotifyTokenRepositoryImpl)(nil)

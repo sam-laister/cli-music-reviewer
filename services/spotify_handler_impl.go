@@ -1,6 +1,7 @@
 package services
 
 import (
+	"cli-music-reviewer/config"
 	"cli-music-reviewer/models/dtos"
 	"cli-music-reviewer/repositories"
 	"encoding/base64"
@@ -10,12 +11,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	redirectUri = "http://127.0.0.1:8888/callback"
+	redirectUri = "http://127.0.0.1:" + config.SpotifyCallbackPort + "/callback"
 )
 
 // ErrNoStoredToken indicates no Spotify token has ever been persisted, so the
@@ -39,7 +41,7 @@ type SpotifyHandlerImpl struct {
 
 func (s *SpotifyHandlerImpl) Authorize() error {
 	const (
-		scope        = "user-read-private user-read-email"
+		scope        = "user-read-private user-read-email user-library-read"
 		responseType = "code"
 	)
 
@@ -162,6 +164,51 @@ func (s *SpotifyHandlerImpl) saveToken(token *TokenResponse) error {
 	}
 
 	return nil
+}
+
+func (s *SpotifyHandlerImpl) GetSavedAlbums(limit, offset int, market string) (*dtos.GetSavedAlbumsResponseDTO, error) {
+	stored, err := s.spotifyTokenRepo.GetLatestOrNull()
+	if err != nil {
+		return nil, err
+	}
+	if stored == nil {
+		return nil, ErrNoStoredToken
+	}
+
+	params := url.Values{}
+	params.Set("limit", strconv.Itoa(limit))
+	params.Set("offset", strconv.Itoa(offset))
+	if market != "" {
+		params.Set("market", market)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "https://api.spotify.com/v1/me/albums?"+params.Encode(), nil)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+stored.AccessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err := fmt.Errorf("spotify get saved albums failed: %s", resp.Status)
+		log.Print(err)
+		return nil, err
+	}
+
+	var result dtos.GetSavedAlbumsResponseDTO
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Print(err)
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func NewSpotifyHandler(browserService BrowserService, spotifyTokenRepo repositories.SpotifyTokenRepositoryInterface, clientId, clientSecret string) *SpotifyHandlerImpl {
