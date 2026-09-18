@@ -1,26 +1,20 @@
 package entities
 
-import (
-	"cli-music-reviewer/interfaces"
-	"database/sql"
-	"time"
-)
-
 type EntryRow struct {
 	GenericEntity
-	Title          string
-	Body           string
-	Active         bool
-	SpotifyID      string
-	SpotifyType    string
-	SpotifyLink    string
-	CoverArtSmall  string
-	CoverArtMedium string
-	CoverArtLarge  string
+	Title          string `db:"title"`
+	Body           string `db:"body"`
+	Active         bool   `db:"active"`
+	SpotifyID      string `db:"spotify_id"`
+	SpotifyType    string `db:"spotify_type"`
+	SpotifyLink    string `db:"spotify_link"`
+	CoverArtSmall  string `db:"cover_art_small"`
+	CoverArtMedium string `db:"cover_art_medium"`
+	CoverArtLarge  string `db:"cover_art_large"`
 }
 
 func NewEntryRow(title, body, spotifyId, spotifyType, spotifyLink, coverArtSmall, coverArtMedium, coverArtLarge string, active bool) *EntryRow {
-	return &EntryRow{
+	row := &EntryRow{
 		Title:          title,
 		Body:           body,
 		Active:         active,
@@ -30,31 +24,14 @@ func NewEntryRow(title, body, spotifyId, spotifyType, spotifyLink, coverArtSmall
 		CoverArtSmall:  coverArtSmall,
 		CoverArtMedium: coverArtMedium,
 		CoverArtLarge:  coverArtLarge,
-		GenericEntity: GenericEntity{
-			UpdatedAt: time.Now(),
-			CreatedAt: time.Now(),
-		},
 	}
-}
-
-func (r *EntryRow) ScanRow(row *sql.Row) error {
-	return row.Scan(&r.ID, &r.Title, &r.Body, &r.CreatedAt, &r.UpdatedAt, &r.Active, &r.SpotifyID, &r.SpotifyType, &r.SpotifyLink, &r.CoverArtSmall, &r.CoverArtMedium, &r.CoverArtLarge)
-}
-
-func (r *EntryRow) ScanRows(rows *sql.Rows) error {
-	return rows.Scan(&r.ID, &r.Title, &r.Body, &r.CreatedAt, &r.UpdatedAt, &r.Active, &r.SpotifyID, &r.SpotifyType, &r.SpotifyLink, &r.CoverArtSmall, &r.CoverArtMedium, &r.CoverArtLarge)
-}
-
-func (r *EntryRow) Values() []interface{} {
-	return []interface{}{r.Title, r.Body, r.CreatedAt, r.UpdatedAt, r.Active, r.SpotifyID, r.SpotifyType, r.SpotifyLink, r.CoverArtSmall, r.CoverArtMedium, r.CoverArtLarge}
-}
-
-func (r *EntryRow) Columns() []string {
-	return []string{"title", "body", "created_at", "updated_at", "active", "spotify_id", "spotify_type", "spotify_link", "cover_art_small", "cover_art_medium", "cover_art_large"}
+	row.MarkCreated()
+	row.MarkUpdated()
+	return row
 }
 
 func (r *EntryRow) TableName() string {
 	return "entry_rows"
 }
 
-var _ interfaces.EntityInterface = (*EntryRow)(nil)
+var _ EntityInterface = (*EntryRow)(nil)

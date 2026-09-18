@@ -8,6 +8,7 @@ import (
 	"cli-music-reviewer/services"
 	"cli-music-reviewer/styles"
 	"fmt"
+	"log"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -74,9 +75,9 @@ func (m *EntryBrowserModel) CursorDown() {
 
 func NewEntryBrowser(showControls bool, repos *repositories.AppRepositories) *EntryBrowserModel {
 	entryRows, err := repos.EntryRowRepository.GetActiveRows()
-
 	if err != nil {
-		return nil
+		log.Printf("entry browser: failed to load active rows: %v", err)
+		entryRows = nil
 	}
 
 	var rowModels []*EntryRowModel

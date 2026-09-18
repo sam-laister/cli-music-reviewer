@@ -1,15 +1,16 @@
 package repositories
 
-import "cli-music-reviewer/interfaces"
+import "cli-music-reviewer/models/entities"
 
-type EntityRepositoryInterface[T interfaces.EntityInterface] interface {
+type EntityRepositoryInterface[T entities.EntityInterface] interface {
 	Create(entity T) (T, error)
 	Update(entity T) error
-	Delete(id int) error
-	FindByID(id int) (T, error)
+	Delete(id uint64) error
+	FindByID(id uint64) (T, error)
 	FindAll() ([]T, error)
-	FindBy(column string, value interface{}) ([]T, error)
+	FindBy(column string, value any) ([]T, error)
+	FindOneBy(column string, value any) (T, error)
 	GetLatestOrNull() (T, error)
-	Exists(id int) (bool, error)
+	Exists(id uint64) (bool, error)
 	Count() (int, error)
 }

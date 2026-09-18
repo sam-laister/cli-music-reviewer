@@ -3,17 +3,18 @@ package repositories
 import (
 	"cli-music-reviewer/models/dtos"
 	"cli-music-reviewer/models/entities"
-	"database/sql"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type SpotifyTokenRepositoryImpl struct {
-	*EntityRepository[*entities.SpotifyToken]
+	*EntityRepositoryImpl[*entities.SpotifyToken]
 }
 
-func NewSpotifyTokenRepository(db *sql.DB) *SpotifyTokenRepositoryImpl {
+func NewSpotifyTokenRepository(db *sqlx.DB) *SpotifyTokenRepositoryImpl {
 	return &SpotifyTokenRepositoryImpl{
-		EntityRepository: NewEntityRepository[*entities.SpotifyToken](db),
+		EntityRepositoryImpl: NewEntityRepositoryImpl[*entities.SpotifyToken](db),
 	}
 }
 

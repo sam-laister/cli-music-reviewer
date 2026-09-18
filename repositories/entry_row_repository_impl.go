@@ -2,21 +2,22 @@ package repositories
 
 import (
 	"cli-music-reviewer/models/entities"
-	"database/sql"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type EntryRowRepositoryImpl struct {
-	*EntityRepository[*entities.EntryRow]
+	*EntityRepositoryImpl[*entities.EntryRow]
 }
 
-func NewEntryRowRepository(db *sql.DB) *EntryRowRepositoryImpl {
+func NewEntryRowRepository(db *sqlx.DB) *EntryRowRepositoryImpl {
 	return &EntryRowRepositoryImpl{
-		EntityRepository: NewEntityRepository[*entities.EntryRow](db),
+		EntityRepositoryImpl: NewEntityRepositoryImpl[*entities.EntryRow](db),
 	}
 }
 
 func (r *EntryRowRepositoryImpl) GetActiveRows() ([]*entities.EntryRow, error) {
-	return r.EntityRepository.FindBy("active", true)
+	return r.FindBy("active", true)
 }
 
 var _ EntryRowRepositoryInterface = (*EntryRowRepositoryImpl)(nil)

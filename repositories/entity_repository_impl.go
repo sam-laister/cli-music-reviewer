@@ -1,27 +1,24 @@
 package repositories
 
 import (
-	"cli-music-reviewer/interfaces"
+	"cli-music-reviewer/models/entities"
 	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
 )
 
-type EntityRepository[T interfaces.EntityInterface] struct {
-	db *sql.DB
+type EntityRepositoryImpl[T entities.EntityInterface] struct {
+	db *sqlx.DB
 }
 
-func NewEntityRepository[T interfaces.EntityInterface](db *sql.DB) *EntityRepository[T] {
-	return &EntityRepository[T]{db: db}
+func NewEntityRepositoryImpl[T entities.EntityInterface](db *sqlx.DB) *EntityRepositoryImpl[T] {
+	return &EntityRepositoryImpl[T]{db: db}
 }
 
-// newEntity allocates a fresh, non-nil T to scan a row into. T is always a
-// pointer to a struct implementing EntityInterface; the zero value of a
-// pointer type is nil, and ScanRow/ScanRows dereference fields on the
-// receiver, so scanning into "var result T" panics. reflect.TypeOf still
-// reports the pointee type on a nil T, which is enough to allocate one.
-func newEntity[T interfaces.EntityInterface]() T {
+func newEntity[T entities.EntityInterface]() T {
 	var zero T
 	t := reflect.TypeOf(zero)
 	if t == nil || t.Kind() != reflect.Pointer {
@@ -30,26 +27,49 @@ func newEntity[T interfaces.EntityInterface]() T {
 	return reflect.New(t.Elem()).Interface().(T)
 }
 
-func (r *EntityRepository[T]) FindByID(id int) (T, error) {
+// dbColumns returns the `db`-tagged column names for T, excluding "id",
+// by walking the struct fields (embedded fields included).
+func dbColumns[T entities.EntityInterface]() []string {
+	t := reflect.TypeOf(newEntity[T]()).Elem()
+
+	var cols []string
+	var walk func(reflect.Type)
+	walk = func(t reflect.Type) {
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			if field.Anonymous {
+				walk(field.Type)
+				continue
+			}
+			tag := field.Tag.Get("db")
+			if tag == "" || tag == "-" || tag == "id" {
+				continue
+			}
+			cols = append(cols, tag)
+		}
+	}
+	walk(t)
+	return cols
+}
+
+func (r *EntityRepositoryImpl[T]) FindByID(id uint64) (T, error) {
 	result := newEntity[T]()
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id = ?", result.TableName())
-
-	row := r.db.QueryRow(query, id)
-	err := result.ScanRow(row)
+	err := r.db.Get(result, query, id)
 	return result, err
 }
 
-func (r *EntityRepository[T]) Create(entity T) (T, error) {
-	cols := entity.Columns()
+func (r *EntityRepositoryImpl[T]) Create(entity T) (T, error) {
+	cols := dbColumns[T]()
 	placeholders := make([]string, len(cols))
-	for i := range cols {
-		placeholders[i] = "?"
+	for i, c := range cols {
+		placeholders[i] = ":" + c
 	}
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
 		entity.TableName(),
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "))
-	result, err := r.db.Exec(query, entity.Values()...)
+	result, err := r.db.NamedExec(query, entity)
 	if err != nil {
 		return entity, err
 	}
@@ -59,17 +79,16 @@ func (r *EntityRepository[T]) Create(entity T) (T, error) {
 		return entity, err
 	}
 
-	entity.SetID(int(id))
+	entity.SetID(uint64(id))
 	return entity, nil
 }
 
-func (r *EntityRepository[T]) GetLatestOrNull() (T, error) {
+func (r *EntityRepositoryImpl[T]) GetLatestOrNull() (T, error) {
 	var zero T
 	query := fmt.Sprintf("SELECT * FROM %s ORDER BY id DESC LIMIT 1", zero.TableName())
 
-	row := r.db.QueryRow(query)
 	result := newEntity[T]()
-	if err := result.ScanRow(row); err != nil {
+	if err := r.db.Get(result, query); err != nil {
 		if err == sql.ErrNoRows {
 			return zero, nil
 		}
@@ -78,28 +97,23 @@ func (r *EntityRepository[T]) GetLatestOrNull() (T, error) {
 	return result, nil
 }
 
-func (r *EntityRepository[T]) FindBy(column string, value interface{}) ([]T, error) {
+func (r *EntityRepositoryImpl[T]) FindBy(column string, value any) ([]T, error) {
 	var zero T
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s = ?", zero.TableName(), column)
 
-	rows, err := r.db.Query(query, value)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var results []T
-	for rows.Next() {
-		item := newEntity[T]()
-		if err := item.ScanRows(rows); err != nil {
-			return nil, err
-		}
-		results = append(results, item)
-	}
-	return results, rows.Err()
+	err := r.db.Select(&results, query, value)
+	return results, err
 }
 
-func (r *EntityRepository[T]) Exists(id int) (bool, error) {
+func (r *EntityRepositoryImpl[T]) FindOneBy(column string, value any) (T, error) {
+	result := newEntity[T]()
+	query := fmt.Sprintf("SELECT * FROM %s WHERE %s = ? LIMIT 1", result.TableName(), column)
+	err := r.db.Get(result, query, value)
+	return result, err
+}
+
+func (r *EntityRepositoryImpl[T]) Exists(id uint64) (bool, error) {
 	var zero T
 	query := fmt.Sprintf("SELECT 1 FROM %s WHERE id = ? LIMIT 1", zero.TableName())
 	var dummy int
@@ -110,7 +124,7 @@ func (r *EntityRepository[T]) Exists(id int) (bool, error) {
 	return err == nil, err
 }
 
-func (r *EntityRepository[T]) Count() (int, error) {
+func (r *EntityRepositoryImpl[T]) Count() (int, error) {
 	var zero T
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", zero.TableName())
 	var count int
@@ -118,46 +132,33 @@ func (r *EntityRepository[T]) Count() (int, error) {
 	return count, err
 }
 
-func (r *EntityRepository[T]) Delete(id int) error {
+func (r *EntityRepositoryImpl[T]) Delete(id uint64) error {
 	var zero T
 	query := fmt.Sprintf("DELETE FROM %s WHERE id = ?", zero.TableName())
 	_, err := r.db.Exec(query, id)
 	return err
 }
 
-func (r *EntityRepository[T]) FindAll() ([]T, error) {
+func (r *EntityRepositoryImpl[T]) FindAll() ([]T, error) {
 	var zero T
 	query := fmt.Sprintf("SELECT * FROM %s", zero.TableName())
 
-	rows, err := r.db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var results []T
-	for rows.Next() {
-		item := newEntity[T]()
-		if err := item.ScanRows(rows); err != nil {
-			return nil, err
-		}
-		results = append(results, item)
-	}
-	return results, rows.Err()
+	err := r.db.Select(&results, query)
+	return results, err
 }
 
-func (r *EntityRepository[T]) Update(entity T) error {
-	cols := entity.Columns()
+func (r *EntityRepositoryImpl[T]) Update(entity T) error {
+	cols := dbColumns[T]()
 	setClauses := make([]string, len(cols))
 	for i, c := range cols {
-		setClauses[i] = fmt.Sprintf("%s = ?", c)
+		setClauses[i] = fmt.Sprintf("%s = :%s", c, c)
 	}
 
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = ?",
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = :id",
 		entity.TableName(),
 		strings.Join(setClauses, ", "))
 
-	args := append(entity.Values(), entity.GetID())
-	_, err := r.db.Exec(query, args...)
+	_, err := r.db.NamedExec(query, entity)
 	return err
 }

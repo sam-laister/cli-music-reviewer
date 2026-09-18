@@ -4,15 +4,15 @@ import (
 	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/services"
 	"cli-music-reviewer/views"
-	"database/sql"
 	"log"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 )
 
-func SetupDatabase() (*sql.DB, error) {
+func SetupDatabase() (*sqlx.DB, error) {
 	dbService := services.NewDatabaseService(os.Getenv("DATABASE_URI"))
 
 	db, err := dbService.Connect()
@@ -23,7 +23,7 @@ func SetupDatabase() (*sql.DB, error) {
 	return db, nil
 }
 
-func SetupRepositories(db *sql.DB) *repositories.AppRepositories {
+func SetupRepositories(db *sqlx.DB) *repositories.AppRepositories {
 	return &repositories.AppRepositories{
 		EntryRowRepository:     repositories.NewEntryRowRepository(db),
 		SpotifyTokenRepository: repositories.NewSpotifyTokenRepository(db),
