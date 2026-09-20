@@ -25,11 +25,11 @@ const (
 	// paneHeightOverhead accounts for every line surrounding the pane block
 	// that isn't part of it, so the whole frame fits within the terminal's
 	// reported height without Bubble Tea silently chopping lines off the
-	// top (it can't scroll into history in alt-screen mode):
-	// pane border (top+bottom, +2) + this view's own header/blank/blank/
-	// instructions lines (+4) + the homepage wrapper's leading blank,
-	// blank-blank around instructions, and trailing blank (+4) = 10.
-	paneHeightOverhead = 10
+	// top (it can't scroll into history in alt-screen mode): pane border
+	// (top+bottom, +2) + this view's own header/blank/blank/instructions
+	// lines (+4). The editor is full-bleed — homepage.go doesn't wrap it in
+	// anything else, unlike the centered "central modal" views.
+	paneHeightOverhead = 6
 )
 
 type ReviewEditorModel struct {
@@ -147,7 +147,7 @@ func (m *ReviewEditorModel) Update(msg tea.Msg) (*ReviewEditorModel, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc":
+		case "ctrl+x":
 			if m.dirty() {
 				m.confirmingDiscard = true
 				return m, nil
@@ -177,7 +177,7 @@ func (m *ReviewEditorModel) View() string {
 	header := styles.ConfigHeaderStyle.Render(" Review: " + m.entry.Title + " ")
 	body := lipgloss.JoinHorizontal(lipgloss.Top, editorPane, previewPane)
 
-	instructions := styles.InstructionStyle.Render("ctrl+s to save • esc to cancel")
+	instructions := styles.InstructionStyle.Render("ctrl+s to save • ctrl+x to close")
 	if m.confirmingDiscard {
 		instructions = styles.ErrorStyle.Render("Discard unsaved changes? y to confirm • any other key to keep editing")
 	}

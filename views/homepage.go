@@ -8,10 +8,10 @@ import (
 	"cli-music-reviewer/repositories"
 	"cli-music-reviewer/services"
 	"cli-music-reviewer/styles"
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type HomepageModel struct {
@@ -137,8 +137,16 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m HomepageModel) View() string {
-	var currentView string
+	// The editor is a distinct full-screen mode with its own neovim-style
+	// (ctrl+key) keybindings, not part of the tab-cycling "central modal"
+	// paradigm the rest of the app uses — it gets the whole screen, nothing
+	// centered around it, and no generic tab/quit instructions line (tab and
+	// q are captured by the editor itself while it's focused).
+	if m.reviewEditor != nil {
+		return m.services.ArtworkService.ClearImages() + m.reviewEditor.View()
+	}
 
+	var currentView string
 	switch m.state {
 	case StateSplash:
 		currentView = m.splashPage.View()
@@ -150,38 +158,38 @@ func (m HomepageModel) View() string {
 		panic("unknown state")
 	}
 
-	switch {
-	case m.modal != nil:
+	canShowArtwork := m.state == StateMenu
+	if m.modal != nil {
 		currentView = m.modal.View()
-	case m.reviewEditor != nil:
-		currentView = m.reviewEditor.View()
+		canShowArtwork = true
 	}
 
-	instructions := styles.InstructionStyle.Render("Press 'tab' to switch views • 'q' to quit")
-
-	// canShowArtwork: is it possible for currentView, as rendered above, to
-	// contain a fresh Kitty image placement of its own? Both the browser
-	// list (StateMenu) and the create-entry modal (picker/form step) can.
-	//
-	// When it's NOT possible, prepend a clear so nothing stale from a
-	// previous frame lingers (switching state/tabs away from the entry
-	// browser, opening the review editor, etc.) — views that CAN show
-	// artwork already bake their own delete-then-place into whatever cached
-	// image string they re-embed (see services/artwork_service.go), so nothing
-	// extra is needed there, and unconditionally prepending regardless of
-	// this check does NOT work: browserPage/modal views all share a leading
-	// blank margin line (styles.ConfigHeroStyle / styles.ModalStyle both use
-	// Margin(1,0,1,0)), so an always-on prefix sits on an always-identical
-	// line and Bubble Tea's line-diffing renderer permanently skips resending
-	// it after the first paint. Toggling the prefix's presence on/off exactly
-	// at these transitions is what guarantees the line actually changes when
-	// it needs to.
-	canShowArtwork := m.modal != nil || (m.reviewEditor == nil && m.state == StateMenu)
+	// See services/artwork_service.go / album picker & create-entry modal —
+	// those views bake their own Kitty delete-then-place into whatever
+	// cached image string they re-embed, so nothing extra is needed when
+	// they're on screen. When neither can be showing artwork, prepend a
+	// clear so nothing stale from a previous frame lingers. This must stay
+	// conditional (present only some frames), not unconditional — browser/
+	// modal views share a leading blank margin line (styles.ConfigHeroStyle
+	// / styles.ModalStyle both use Margin(1,0,1,0)), so an always-on prefix
+	// would sit on an always-identical line and Bubble Tea's line-diffing
+	// renderer would permanently skip resending it after the first paint.
+	// Toggling the prefix's presence on/off exactly at these transitions is
+	// what guarantees the line actually changes when it needs to.
 	if !canShowArtwork {
 		currentView = m.services.ArtworkService.ClearImages() + currentView
 	}
 
-	return fmt.Sprintf("\n%s\n\n%s\n", currentView, instructions)
+	instructions := styles.InstructionStyle.Render("Press 'tab' to switch views • 'q' to quit")
+	block := currentView + "\n\n" + instructions
+
+	if m.termWidth <= 0 || m.termHeight <= 0 {
+		// No WindowSizeMsg yet (first frame) — render un-centered rather
+		// than collapse into a 0x0 canvas.
+		return "\n" + block + "\n"
+	}
+
+	return lipgloss.Place(m.termWidth, m.termHeight, lipgloss.Center, lipgloss.Center, block)
 }
 
 func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) tea.Cmd {
