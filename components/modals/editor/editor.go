@@ -1,4 +1,4 @@
-package modals
+package editor
 
 import (
 	"cli-music-reviewer/events"
@@ -32,7 +32,7 @@ const (
 	paneHeightOverhead = 6
 )
 
-type ReviewEditorModel struct {
+type Model struct {
 	entry        *entities.EntryRow
 	originalBody string
 
@@ -46,7 +46,7 @@ type ReviewEditorModel struct {
 	height int
 }
 
-func NewReviewEditor(entryID uint64, repo repositories.EntryRowRepositoryInterface, width, height int) (*ReviewEditorModel, error) {
+func New(entryID uint64, repo repositories.EntryRowRepositoryInterface, width, height int) (*Model, error) {
 	entry, err := repo.FindByID(entryID)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func NewReviewEditor(entryID uint64, repo repositories.EntryRowRepositoryInterfa
 	editor.SetValue(entry.Body)
 	editor.Focus()
 
-	m := &ReviewEditorModel{
+	m := &Model{
 		entry:        entry,
 		originalBody: entry.Body,
 		editor:       editor,
@@ -75,15 +75,15 @@ func NewReviewEditor(entryID uint64, repo repositories.EntryRowRepositoryInterfa
 	return m, nil
 }
 
-func (m *ReviewEditorModel) paneWidth() int {
+func (m *Model) paneWidth() int {
 	return (m.width - paneWidthOverhead) / 2
 }
 
-func (m *ReviewEditorModel) paneHeight() int {
+func (m *Model) paneHeight() int {
 	return m.height - paneHeightOverhead
 }
 
-func (m *ReviewEditorModel) resize(width, height int) {
+func (m *Model) resize(width, height int) {
 	m.width = width
 	m.height = height
 
@@ -106,7 +106,7 @@ func (m *ReviewEditorModel) resize(width, height int) {
 	m.updatePreview()
 }
 
-func (m *ReviewEditorModel) updatePreview() {
+func (m *Model) updatePreview() {
 	if m.renderer == nil {
 		m.preview.SetContent(m.editor.Value())
 		return
@@ -120,17 +120,17 @@ func (m *ReviewEditorModel) updatePreview() {
 	m.preview.SetContent(rendered)
 }
 
-func (m *ReviewEditorModel) save() tea.Msg {
+func (m *Model) save() tea.Msg {
 	m.entry.Body = m.editor.Value()
 	m.entry.MarkUpdated()
 	return events.ReviewSaveRequestedMsg{Entry: m.entry}
 }
 
-func (m *ReviewEditorModel) dirty() bool {
+func (m *Model) dirty() bool {
 	return m.editor.Value() != m.originalBody
 }
 
-func (m *ReviewEditorModel) Update(msg tea.Msg) (*ReviewEditorModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if m.confirmingDiscard {
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.String() == "y" {
@@ -164,7 +164,7 @@ func (m *ReviewEditorModel) Update(msg tea.Msg) (*ReviewEditorModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *ReviewEditorModel) View() string {
+func (m *Model) View() string {
 	paneStyle := lipgloss.NewStyle().
 		Width(m.paneWidth()).
 		Height(m.paneHeight()).

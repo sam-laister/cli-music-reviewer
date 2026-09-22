@@ -1,6 +1,8 @@
-package modals
+package createentry
 
 import (
+	"cli-music-reviewer/components/modals/album_picker"
+	"cli-music-reviewer/components/modals/entryform"
 	"cli-music-reviewer/services"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,19 +15,19 @@ const (
 	stepForm
 )
 
-type CreateEntryModalModel struct {
+type Model struct {
 	step   createEntryStep
-	picker *albumPickerModel
-	form   *entryFormModel
+	picker *album_picker.Model
+	form   *entryform.Model
 
 	spotifyHandler services.SpotifyHandler
 	artworkService services.ArtworkService
 }
 
-func NewCreateEntryModal(spotifyHandler services.SpotifyHandler, artworkService services.ArtworkService) (*CreateEntryModalModel, tea.Cmd) {
-	picker, loadCmd := newAlbumPicker(spotifyHandler, artworkService)
+func New(spotifyHandler services.SpotifyHandler, artworkService services.ArtworkService) (*Model, tea.Cmd) {
+	picker, loadCmd := album_picker.New(spotifyHandler, artworkService)
 
-	m := &CreateEntryModalModel{
+	m := &Model{
 		step:           stepPicker,
 		picker:         picker,
 		spotifyHandler: spotifyHandler,
@@ -35,14 +37,14 @@ func NewCreateEntryModal(spotifyHandler services.SpotifyHandler, artworkService 
 	return m, loadCmd
 }
 
-func (m *CreateEntryModalModel) Update(msg tea.Msg) (*CreateEntryModalModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case albumSelectedMsg:
-		artwork := m.picker.artCache[albumArtworkURL(msg.album)]
-		m.form = newEntryForm(msg.album, artwork)
+	case album_picker.AlbumSelectedMsg:
+		artwork := m.picker.GetCacheItem(services.AlbumArtworkURL(msg.Album))
+		m.form = entryform.New(msg.Album, artwork)
 		m.step = stepForm
 		return m, nil
-	case backToPickerMsg:
+	case entryform.BackToPickerMsg:
 		m.step = stepPicker
 		m.form = nil
 		return m, nil
@@ -58,7 +60,7 @@ func (m *CreateEntryModalModel) Update(msg tea.Msg) (*CreateEntryModalModel, tea
 	return m, cmd
 }
 
-func (m *CreateEntryModalModel) View() string {
+func (m *Model) View() string {
 	switch m.step {
 	case stepForm:
 		return m.form.View()

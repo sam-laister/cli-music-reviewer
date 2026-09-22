@@ -1,8 +1,11 @@
 package views
 
 import (
-	"cli-music-reviewer/components"
-	"cli-music-reviewer/components/modals"
+	"cli-music-reviewer/components/modals/createentry"
+	"cli-music-reviewer/components/modals/editor"
+	"cli-music-reviewer/components/screens/options"
+	"cli-music-reviewer/components/screens/reviews"
+	"cli-music-reviewer/components/screens/splash"
 	"cli-music-reviewer/events"
 	"cli-music-reviewer/models/entities"
 	"cli-music-reviewer/repositories"
@@ -10,17 +13,17 @@ import (
 	"cli-music-reviewer/styles"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type HomepageModel struct {
 	state        homepageState
-	splashPage   *components.SplashScreenModel
-	browserPage  *components.EntryBrowserModel
-	optionsPage  *components.OptionsScreenModel
-	modal        *modals.CreateEntryModalModel
-	reviewEditor *modals.ReviewEditorModel
+	splashPage   *splash.Model
+	browserPage  *reviews.Model
+	optionsPage  *options.Model
+	modal        *createentry.Model
+	reviewEditor *editor.Model
 	repos        *repositories.AppRepositories
 	services     *services.AppServices
 	termWidth    int
@@ -77,7 +80,7 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = m.repos.EntryRowRepository.Update(msg.Entry)
 			m.reviewEditor = nil
 			var browserCmd tea.Cmd
-			m.browserPage, browserCmd = components.NewEntryBrowser(true, m.repos, m.services.ArtworkService)
+			m.browserPage, browserCmd = reviews.New(true, m.repos, m.services.ArtworkService)
 			return m, tea.Batch(browserCmd, tea.ClearScreen)
 		case events.ReviewEditCancelledMsg:
 			m.reviewEditor = nil
@@ -99,10 +102,10 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case events.EntryCreateRequestedMsg:
 		var focusCmd tea.Cmd
-		m.modal, focusCmd = modals.NewCreateEntryModal(m.services.SpotifyHandler, m.services.ArtworkService)
+		m.modal, focusCmd = createentry.New(m.services.SpotifyHandler, m.services.ArtworkService)
 		return m, tea.Batch(focusCmd, tea.ClearScreen)
 	case events.EntryEditRequestedMsg:
-		if editor, err := modals.NewReviewEditor(msg.EntryID, m.repos.EntryRowRepository, m.termWidth, m.termHeight); err == nil {
+		if editor, err := editor.New(msg.EntryID, m.repos.EntryRowRepository, m.termWidth, m.termHeight); err == nil {
 			m.reviewEditor = editor
 			return m, tea.ClearScreen
 		}
@@ -113,20 +116,7 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StateSplash:
 		m.splashPage, cmd = m.splashPage.Update(msg)
 	case StateMenu:
-		var navCmd tea.Cmd
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			switch keypress := msg.String(); keypress {
-			case "up":
-				navCmd = m.browserPage.CursorUp()
-			case "down":
-				navCmd = m.browserPage.CursorDown()
-			}
-		}
-
-		var updateCmd tea.Cmd
-		m.browserPage, updateCmd = m.browserPage.Update(msg)
-		cmd = tea.Batch(navCmd, updateCmd)
+		m.browserPage, cmd = m.browserPage.Update(msg)
 	case StateOptions:
 		m.optionsPage, cmd = m.optionsPage.Update(msg)
 	default:
@@ -217,18 +207,18 @@ func (m *HomepageModel) createEntry(msg events.EntryCreateSubmittedMsg) tea.Cmd 
 	}
 
 	var browserCmd tea.Cmd
-	m.browserPage, browserCmd = components.NewEntryBrowser(true, m.repos, m.services.ArtworkService)
+	m.browserPage, browserCmd = reviews.New(true, m.repos, m.services.ArtworkService)
 	return browserCmd
 }
 
 func NewHomepage(repos *repositories.AppRepositories, services *services.AppServices) tea.Model {
-	browserPage, browserCmd := components.NewEntryBrowser(true, repos, services.ArtworkService)
+	browserPage, browserCmd := reviews.New(true, repos, services.ArtworkService)
 
 	return HomepageModel{
 		state:       StateSplash,
-		splashPage:  components.NewSplashScreen(),
+		splashPage:  splash.New(),
 		browserPage: browserPage,
-		optionsPage: components.NewOptionsScreen(services.SpotifyHandler, services.HttpHandler),
+		optionsPage: options.New(services.SpotifyHandler, services.HttpHandler),
 		repos:       repos,
 		services:    services,
 		initialCmd:  browserCmd,

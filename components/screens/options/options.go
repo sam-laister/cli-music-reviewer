@@ -1,4 +1,4 @@
-package components
+package options
 
 import (
 	"cli-music-reviewer/services"
@@ -17,19 +17,7 @@ const (
 	optionsListHeight = 10
 )
 
-// spotifyAuthCheckedMsg carries the result of an EnsureAuthorized call made
-// in response to a refresh request.
-type spotifyAuthCheckedMsg struct {
-	err error
-}
-
-// spotifyConnectedMsg carries the result of a full Authorize/callback flow
-// started in response to an authorize request.
-type spotifyConnectedMsg struct {
-	err error
-}
-
-type OptionsScreenModel struct {
+type Model struct {
 	spotifyHandler services.SpotifyHandler
 	httpHandler    services.HttpHandler
 	authorized     bool
@@ -40,28 +28,16 @@ type OptionsScreenModel struct {
 	list           optionslist.Model
 }
 
-func NewOptionsScreen(spotifyHandler services.SpotifyHandler, httpHandler services.HttpHandler) *OptionsScreenModel {
-	items := []optionslist.Field{
-		checkbox.New("Kid A", false, checkbox.WithTheme(theme.Default())),
-		checkbox.New("Blonde", false, checkbox.WithTheme(theme.Default())),
-		checkbox.New("To Pimp a Butterfly", false, checkbox.WithTheme(theme.Default())),
-		textinput.New("In Rainbows", "10", textinput.WithTheme(theme.Default())),
-		textinput.New("Channel Orange", "5", textinput.WithTheme(theme.Default())),
-	}
-
-	list := optionslist.New(items, theme.Default())
-	list.SetSize(optionsListWidth, optionsListHeight)
-
-	return &OptionsScreenModel{
-		spotifyHandler: spotifyHandler,
-		httpHandler:    httpHandler,
-		authorized:     spotifyHandler.EnsureAuthorized() == nil,
-		spinner:        spinner.New(spinner.WithSpinner(spinner.Dot)),
-		list:           list,
-	}
+func (m *Model) View() string {
+	header := styles.ConfigHeaderStyle.Render(" Options ")
+	return styles.ConfigHeroStyle.Render(header + "\n\n" + m.list.View())
 }
 
-func (m *OptionsScreenModel) checkAuth() tea.Msg {
+func (m *Model) SetSize(width, height int) {
+	m.list.SetSize(width, height)
+}
+
+func (m *Model) checkAuth() tea.Msg {
 	return spotifyAuthCheckedMsg{err: m.spotifyHandler.EnsureAuthorized()}
 }
 
@@ -69,7 +45,7 @@ func (m *OptionsScreenModel) checkAuth() tea.Msg {
 // EnsureAuthorized's reuse-if-present shortcut — this is what makes 'a' a
 // genuine re-authorize action even if a (possibly stale-scoped) token is
 // already stored.
-func (m *OptionsScreenModel) connect() tea.Msg {
+func (m *Model) connect() tea.Msg {
 	if err := m.httpHandler.Setup(); err != nil {
 		return spotifyConnectedMsg{err: err}
 	}
@@ -79,7 +55,7 @@ func (m *OptionsScreenModel) connect() tea.Msg {
 	return spotifyConnectedMsg{err: m.httpHandler.Wait()}
 }
 
-func (m *OptionsScreenModel) Update(msg tea.Msg) (*OptionsScreenModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -117,11 +93,23 @@ func (m *OptionsScreenModel) Update(msg tea.Msg) (*OptionsScreenModel, tea.Cmd) 
 	return m, cmd
 }
 
-func (m *OptionsScreenModel) View() string {
-	header := styles.ConfigHeaderStyle.Render(" Options ")
-	return styles.ConfigHeroStyle.Render(header + "\n\n" + m.list.View())
-}
+func New(spotifyHandler services.SpotifyHandler, httpHandler services.HttpHandler) *Model {
+	items := []optionslist.Field{
+		checkbox.New("Kid A", false, checkbox.WithTheme(theme.Default())),
+		checkbox.New("Blonde", false, checkbox.WithTheme(theme.Default())),
+		checkbox.New("To Pimp a Butterfly", false, checkbox.WithTheme(theme.Default())),
+		textinput.New("In Rainbows", "10", textinput.WithTheme(theme.Default())),
+		textinput.New("Channel Orange", "5", textinput.WithTheme(theme.Default())),
+	}
 
-func (m *OptionsScreenModel) SetSize(width, height int) {
-	m.list.SetSize(width, height)
+	list := optionslist.New(items, theme.Default())
+	list.SetSize(optionsListWidth, optionsListHeight)
+
+	return &Model{
+		spotifyHandler: spotifyHandler,
+		httpHandler:    httpHandler,
+		authorized:     spotifyHandler.EnsureAuthorized() == nil,
+		spinner:        spinner.New(spinner.WithSpinner(spinner.Dot)),
+		list:           list,
+	}
 }

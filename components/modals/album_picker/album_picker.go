@@ -1,4 +1,4 @@
-package modals
+package album_picker
 
 import (
 	"cli-music-reviewer/events"
@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	artworkCols     = 24
-	artworkRows     = 12
+	ArtworkCols     = 24
+	ArtworkRows     = 12
 	visibleListRows = 8
 	savedAlbumLimit = 10
 )
@@ -29,23 +29,7 @@ const (
 	pickerLoaded
 )
 
-type albumsLoadedMsg struct {
-	albums []dtos.SavedAlbumDTO
-	err    error
-}
-
-type artworkRenderedMsg struct {
-	requestID int
-	url       string
-	rendered  string
-	err       error
-}
-
-type albumSelectedMsg struct {
-	album dtos.AlbumDTO
-}
-
-type albumPickerModel struct {
+type Model struct {
 	spotifyHandler services.SpotifyHandler
 	artworkService services.ArtworkService
 
@@ -64,8 +48,8 @@ type albumPickerModel struct {
 	spinner spinner.Model
 }
 
-func newAlbumPicker(spotifyHandler services.SpotifyHandler, artworkService services.ArtworkService) (*albumPickerModel, tea.Cmd) {
-	m := &albumPickerModel{
+func New(spotifyHandler services.SpotifyHandler, artworkService services.ArtworkService) (*Model, tea.Cmd) {
+	m := &Model{
 		spotifyHandler: spotifyHandler,
 		artworkService: artworkService,
 		state:          pickerLoading,
@@ -75,34 +59,34 @@ func newAlbumPicker(spotifyHandler services.SpotifyHandler, artworkService servi
 	return m, tea.Batch(m.spinner.Tick, m.loadAlbums)
 }
 
-func (m *albumPickerModel) loadAlbums() tea.Msg {
+func (m *Model) loadAlbums() tea.Msg {
 	if err := m.spotifyHandler.EnsureAuthorized(); err != nil {
-		return albumsLoadedMsg{err: err}
+		return AlbumsLoadedMsg{err: err}
 	}
 
 	resp, err := m.spotifyHandler.GetSavedAlbums(savedAlbumLimit, 0, "")
 	if err != nil {
-		return albumsLoadedMsg{err: err}
+		return AlbumsLoadedMsg{err: err}
 	}
 
-	return albumsLoadedMsg{albums: resp.Items}
+	return AlbumsLoadedMsg{albums: resp.Items}
 }
 
-func (m *albumPickerModel) loadArtwork(requestID int, url string) tea.Cmd {
+func (m *Model) loadArtwork(requestID int, url string) tea.Cmd {
 	return func() tea.Msg {
-		rendered, err := m.artworkService.Render(url, artworkCols, artworkRows)
-		return artworkRenderedMsg{requestID: requestID, url: url, rendered: rendered, err: err}
+		rendered, err := m.artworkService.Render(url, ArtworkCols, ArtworkRows)
+		return ArtworkRenderedMsg{requestID: requestID, url: url, rendered: rendered, err: err}
 	}
 }
 
-func (m *albumPickerModel) selectedURL() string {
+func (m *Model) selectedURL() string {
 	if m.state != pickerLoaded || len(m.albums) == 0 {
 		return ""
 	}
-	return albumArtworkURL(m.albums[m.activeIndex].Album)
+	return services.AlbumArtworkURL(m.albums[m.activeIndex].Album)
 }
 
-func (m *albumPickerModel) requestArtwork() tea.Cmd {
+func (m *Model) requestArtwork() tea.Cmd {
 	url := m.selectedURL()
 	if url == "" {
 		return nil
@@ -115,9 +99,9 @@ func (m *albumPickerModel) requestArtwork() tea.Cmd {
 	return m.loadArtwork(m.requestID, url)
 }
 
-func (m *albumPickerModel) Update(msg tea.Msg) (*albumPickerModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case albumsLoadedMsg:
+	case AlbumsLoadedMsg:
 		if msg.err != nil {
 			m.state = pickerError
 			m.err = msg.err
@@ -132,7 +116,7 @@ func (m *albumPickerModel) Update(msg tea.Msg) (*albumPickerModel, tea.Cmd) {
 		m.albums = msg.albums
 		return m, m.requestArtwork()
 
-	case artworkRenderedMsg:
+	case ArtworkRenderedMsg:
 		if msg.requestID != m.requestID {
 			return m, nil
 		}
@@ -167,14 +151,18 @@ func (m *albumPickerModel) Update(msg tea.Msg) (*albumPickerModel, tea.Cmd) {
 			m.cursorDown()
 			return m, m.requestArtwork()
 		case "enter":
-			return m, func() tea.Msg { return albumSelectedMsg{album: m.albums[m.activeIndex].Album} }
+			return m, func() tea.Msg { return AlbumSelectedMsg{Album: m.albums[m.activeIndex].Album} }
 		}
 	}
 
 	return m, nil
 }
 
-func (m *albumPickerModel) cursorUp() {
+func (m *Model) GetCacheItem(url string) string {
+	return m.artCache[url]
+}
+
+func (m *Model) cursorUp() {
 	if m.activeIndex <= 0 {
 		m.activeIndex = 0
 		return
@@ -185,7 +173,7 @@ func (m *albumPickerModel) cursorUp() {
 	}
 }
 
-func (m *albumPickerModel) cursorDown() {
+func (m *Model) cursorDown() {
 	if m.activeIndex >= len(m.albums)-1 {
 		m.activeIndex = len(m.albums) - 1
 		return
@@ -196,7 +184,7 @@ func (m *albumPickerModel) cursorDown() {
 	}
 }
 
-func (m *albumPickerModel) View() string {
+func (m *Model) View() string {
 	header := styles.ConfigHeaderStyle.Render(" Pick an album ")
 
 	var body string
@@ -217,13 +205,13 @@ func (m *albumPickerModel) View() string {
 	return styles.ModalStyle.Render(content)
 }
 
-func (m *albumPickerModel) listView() string {
+func (m *Model) listView() string {
 	end := min(m.scrollOffset+visibleListRows, len(m.albums))
 
 	var rows []string
 	for i := m.scrollOffset; i < end; i++ {
 		album := m.albums[i].Album
-		label := fmt.Sprintf("%s — %s (%s)", album.Name, albumArtists(album), albumYear(album))
+		label := fmt.Sprintf("%s — %s (%s)", album.Name, services.AlbumArtists(album), services.AlbumYear(album))
 
 		cursor := "  "
 		if i == m.activeIndex {
@@ -236,8 +224,8 @@ func (m *albumPickerModel) listView() string {
 	return lipgloss.NewStyle().Width(50).Render(strings.Join(rows, "\n"))
 }
 
-func (m *albumPickerModel) artworkView() string {
-	box := lipgloss.NewStyle().Width(artworkCols).Height(artworkRows)
+func (m *Model) artworkView() string {
+	box := lipgloss.NewStyle().Width(ArtworkCols).Height(ArtworkRows)
 
 	url := m.selectedURL()
 	if rendered, ok := m.artCache[url]; ok {

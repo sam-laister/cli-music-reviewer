@@ -1,8 +1,10 @@
-package modals
+package entryform
 
 import (
+	"cli-music-reviewer/components/modals/album_picker"
 	"cli-music-reviewer/events"
 	"cli-music-reviewer/models/dtos"
+	"cli-music-reviewer/services"
 	"cli-music-reviewer/styles"
 	"fmt"
 	"strings"
@@ -12,8 +14,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type backToPickerMsg struct{}
-
 const (
 	focusTitle = iota
 	focusArtist
@@ -21,7 +21,7 @@ const (
 	focusFieldCount
 )
 
-type entryFormModel struct {
+type Model struct {
 	album   dtos.AlbumDTO
 	artwork string
 
@@ -29,7 +29,7 @@ type entryFormModel struct {
 	focusIndex int
 }
 
-func newEntryForm(album dtos.AlbumDTO, artwork string) *entryFormModel {
+func New(album dtos.AlbumDTO, artwork string) *Model {
 	title := textinput.New()
 	title.Placeholder = "Title"
 	title.SetValue(album.Name)
@@ -38,7 +38,7 @@ func newEntryForm(album dtos.AlbumDTO, artwork string) *entryFormModel {
 
 	artist := textinput.New()
 	artist.Placeholder = "Artist"
-	artist.SetValue(albumArtists(album))
+	artist.SetValue(services.AlbumArtists(album))
 	artist.Width = 40
 
 	date := textinput.New()
@@ -46,14 +46,14 @@ func newEntryForm(album dtos.AlbumDTO, artwork string) *entryFormModel {
 	date.SetValue(album.ReleaseDate)
 	date.Width = 40
 
-	return &entryFormModel{
+	return &Model{
 		album:   album,
 		artwork: artwork,
 		inputs:  [focusFieldCount]textinput.Model{title, artist, date},
 	}
 }
 
-func (m *entryFormModel) setFocus(index int) {
+func (m *Model) setFocus(index int) {
 	m.focusIndex = index
 	for i := range m.inputs {
 		if i == index {
@@ -64,8 +64,8 @@ func (m *entryFormModel) setFocus(index int) {
 	}
 }
 
-func (m *entryFormModel) submit() tea.Msg {
-	small, medium, large := albumCoverArt(m.album)
+func (m *Model) submit() tea.Msg {
+	small, medium, large := services.AlbumCoverArt(m.album)
 	return events.EntryCreateSubmittedMsg{
 		Title:          strings.TrimSpace(m.inputs[focusTitle].Value()),
 		Artist:         strings.TrimSpace(m.inputs[focusArtist].Value()),
@@ -79,12 +79,12 @@ func (m *entryFormModel) submit() tea.Msg {
 	}
 }
 
-func (m *entryFormModel) Update(msg tea.Msg) (*entryFormModel, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
-			return m, func() tea.Msg { return backToPickerMsg{} }
+			return m, func() tea.Msg { return BackToPickerMsg{} }
 		case "enter":
 			return m, m.submit
 		case "tab":
@@ -101,7 +101,7 @@ func (m *entryFormModel) Update(msg tea.Msg) (*entryFormModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *entryFormModel) View() string {
+func (m *Model) View() string {
 	header := styles.ConfigHeaderStyle.Render(" New entry ")
 
 	labels := []string{"Title", "Artist", "Date released"}
@@ -115,7 +115,7 @@ func (m *entryFormModel) View() string {
 	if art == "" {
 		art = styles.InstructionStyle.Render("[cover art unavailable]")
 	}
-	artPanel := lipgloss.NewStyle().Width(artworkCols).Height(artworkRows).Render(art)
+	artPanel := lipgloss.NewStyle().Width(album_picker.ArtworkCols).Height(album_picker.ArtworkRows).Render(art)
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, form, "  ", artPanel)
 	instructions := styles.InstructionStyle.Render("tab to switch fields • enter to save • esc to go back")
