@@ -15,17 +15,17 @@ import (
 )
 
 type HomepageModel struct {
-	state             homepageState
-	splashPage        *components.SplashScreenModel
-	browserPage       *components.EntryBrowserModel
-	spotifyStatusPage *components.SpotifyStatusModel
-	modal             *modals.CreateEntryModalModel
-	reviewEditor      *modals.ReviewEditorModel
-	repos             *repositories.AppRepositories
-	services          *services.AppServices
-	termWidth         int
-	termHeight        int
-	initialCmd        tea.Cmd
+	state        homepageState
+	splashPage   *components.SplashScreenModel
+	browserPage  *components.EntryBrowserModel
+	optionsPage  *components.OptionsScreenModel
+	modal        *modals.CreateEntryModalModel
+	reviewEditor *modals.ReviewEditorModel
+	repos        *repositories.AppRepositories
+	services     *services.AppServices
+	termWidth    int
+	termHeight   int
+	initialCmd   tea.Cmd
 }
 
 type homepageState int
@@ -33,7 +33,7 @@ type homepageState int
 const (
 	StateSplash homepageState = iota
 	StateMenu
-	StateSpotifyStatus
+	StateOptions
 	StateCount
 )
 
@@ -127,8 +127,8 @@ func (m HomepageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var updateCmd tea.Cmd
 		m.browserPage, updateCmd = m.browserPage.Update(msg)
 		cmd = tea.Batch(navCmd, updateCmd)
-	case StateSpotifyStatus:
-		m.spotifyStatusPage, cmd = m.spotifyStatusPage.Update(msg)
+	case StateOptions:
+		m.optionsPage, cmd = m.optionsPage.Update(msg)
 	default:
 		panic("unknown state")
 	}
@@ -152,8 +152,8 @@ func (m HomepageModel) View() string {
 		currentView = m.splashPage.View()
 	case StateMenu:
 		currentView = m.browserPage.View()
-	case StateSpotifyStatus:
-		currentView = m.spotifyStatusPage.View()
+	case StateOptions:
+		currentView = m.optionsPage.View()
 	default:
 		panic("unknown state")
 	}
@@ -225,12 +225,12 @@ func NewHomepage(repos *repositories.AppRepositories, services *services.AppServ
 	browserPage, browserCmd := components.NewEntryBrowser(true, repos, services.ArtworkService)
 
 	return HomepageModel{
-		state:             StateSplash,
-		splashPage:        components.NewSplashScreen(),
-		browserPage:       browserPage,
-		spotifyStatusPage: components.NewSpotifyStatus(services.SpotifyHandler, services.HttpHandler),
-		repos:             repos,
-		services:          services,
-		initialCmd:        browserCmd,
+		state:       StateSplash,
+		splashPage:  components.NewSplashScreen(),
+		browserPage: browserPage,
+		optionsPage: components.NewOptionsScreen(services.SpotifyHandler, services.HttpHandler),
+		repos:       repos,
+		services:    services,
+		initialCmd:  browserCmd,
 	}
 }
